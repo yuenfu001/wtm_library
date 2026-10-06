@@ -1196,3 +1196,404 @@ urlpatterns = [
 </table>
 {% endblock %}
 ```
+## Django Mentorship Module: Pagination, Authentication & Project Configuration
+## 1. Pagination Implementation
+### Views (views.py)
+
+```python
+
+from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
+from django.shortcuts import get_object_or_404, redirect, render
+from .forms import CreateBookForm, CreateGenreForm, UpdateGenreForm
+from .models import Genre
+
+
+@login_required
+def display_genre(request):
+    all_genre = Genre.objects.all()  #.order_by("-id")
+    # paginate = Paginator(object_list, number of rows of your table)
+    paginate = Paginator(all_genre, 10)
+    page_number = request.GET.get("page")
+    page_obj = paginate.get_page(page_number)
+    if request.method == "POST":
+        create_genre_form = CreateGenreForm(request.POST)
+        if create_genre_form.is_valid():
+            create_genre_form.save()
+            return redirect("genres:display_genre")
+
+    else:
+        create_genre_form = CreateGenreForm()
+
+    franco = {
+        "display_genres": page_obj,
+        "genre_form": create_genre_form,
+    }
+    return render(request, "Genre/display_genre.html", franco)
+
+
+def display_books(request):
+    all_books = Book.objects.all()
+
+    if request.method == "POST":
+        book_form = CreateBookForm(request.POST)
+        if book_form.is_valid():
+            create_book = book_form.save(commit=False)
+            create_book.save()
+            book_form.save_m2m()  # for saving genre which is a many to many field
+            return redirect("books_app:display_books")
+
+    else:
+        book_form = CreateBookForm()
+    context = {
+        "display_books": all_books,
+        "create_book": book_form,
+    }
+    return render(request, "book/display_books.html", context)
+
+
+@login_required
+def author_view(request):
+    # return HttpResponse("<h2>This is a registered Author Application</h2> <strong>Yeay our first application in Django under development </strong>")
+    all_author = Author.objects.all().order_by("-id")
+    paginate = Paginator(all_author, 10)
+    page_number = request.GET.get("pages")
+    page_obj = paginate.get_page(page_number)
+
+    raghad = {"page_obj": page_obj}
+    return render(
+        request, "author/display_author.html", raghad
+    )  # {"display_all_author":all_author}
+
+```
+## Author List Template (author/display_author.html)
+
+```html
+{% extends "base/base.html" %}
+
+{% block content %}
+<h2>List of Authors</h2>
+<table>
+    <tr>
+        <th>S/N</th>
+        <th>First Name</th>
+        <th>Last Name</th>
+        <th>Date of birth</th>
+        <th>Year of Death</th>
+        <th>Age</th>
+        <th colspan="2">Options</th>
+    </tr>
+    {% for author in page_obj %}
+    <tr>
+        <td>{{page_obj.start_index|add:forloop.counter0}}</td>
+        <td>{{author.first_name}}</td>
+        <td>{{author.last_name}}</td>
+        <td>{{author.dob}}</td>
+
+        {% if author.year_of_death %}
+        <td>{{author.year_of_death}}</td>
+        {% else %}
+        <td>Still Alive</td>
+        {% endif %}
+        <td>{{author.dob|timesince:author.year_of_death}}</td>
+        <td><a href="{% url 'update_author' author.id %}">edit</a></td>
+        <td><a href="{% url 'delete_author' author.id %}">delete</a></td>
+
+    </tr>
+    {% endfor %}
+</table>
+
+<div>
+    {% if page_obj.has_previous %}
+        <a href="?pages=1">First</a>
+        <a href="?pages={{page_obj.previous_page_number}}">Previous</a>
+    {% endif %}
+</div>
+<div>
+    {% for yeukai in page_obj.paginator.page_range %}
+    <a href="?pages={{yeukai}}">{{yeukai}}</a>
+      
+    {% endfor %}
+</div>
+<div>
+    {% if page_obj.has_next %}
+        <a href="?pages={{page_obj.paginator.num_pages}}">Last</a>
+        <a href="?pages={{page_obj.next_page_number}}">Next</a>
+    {% endif %}
+</div>
+{% endblock %}
+Genre List Template (Genre/display_genre.html)
+HTML
+{% extends "base/base.html" %}
+{% block content %}
+    <h2>List of Genres</h2>
+
+    <form action="" method="post">
+        {% csrf_token %}
+        {{genre_form.as_p}}
+        <button type="submit">Create</button>
+    </form>
+    <p></p>
+    <table>
+        <tr>
+            <th>S/N</th>
+            <th>Title</th>
+            <th>Category</th>
+            <th colspan="2">Options</th>
+        </tr>
+        {% for flavia in display_genres %}
+        <tr>
+            <td>{{display_genres.start_index|add:forloop.counter0}}</td>
+            <td>{{flavia.title}}</td>
+            <td>{{flavia.category}}</td>
+            <td><a href="{% url 'genres:update_genre' flavia.id %}">edit</a></td>
+            <td><a href="{% url 'genres:delete_genre' flavia.id %}">delete</a></td>
+            
+        </tr>
+        {% endfor %}
+    </table>
+    <div>
+        {{display_genres.paginator.count}} Total records
+    </div>
+    <div>
+        showing {{display_genres.number}} of {{display_genres.paginator.num_pages}} pages
+    </div>
+    <div>
+        {% for page in display_genres.paginator.page_range %}
+          <a href="?page={{page}}">{{page}}</a>
+        {% endfor %}
+    </div>
+    <div>
+        {% if display_genres.has_previous %}
+          <a href="?page=1">first</a>
+          <a href="?page={{display_genres.previous_page_number}}">Previous</a>
+        {% endif %}
+    </div>
+    <div>
+        {% if display_genres.has_next %}
+          <a href="?page={{display_genres.next_page_number}}">Next</a>
+          <a href="?page={{display_genres.paginator.num_pages}}">Last</a>
+        {% endif %}
+    </div>
+{% endblock %}
+```
+## 2. Accounts Application & Authentication
+Views (accounts/views.py)
+```Python
+from django.contrib.auth import authenticate, login, logout
+from django.shortcuts import redirect, render
+from .forms import LoginForm, RegistrationForm
+
+
+def login_view(request):
+    if request.user.is_authenticated:
+        return redirect("home:index")
+
+    if request.method == "POST":
+        login_form = LoginForm(request, data=request.POST)
+        if login_form.is_valid():
+            user = login_form.get_user()
+            login(request, user)
+            return redirect("home:index")
+    else:
+        login_form = LoginForm()
+
+    context = {"login": login_form}
+    return render(request, "auth/login.html", context)
+
+
+def registration_view(request):
+    if request.user.is_authenticated:
+        return redirect("home:index")
+    if request.method == "POST":
+        registration_form = RegistrationForm(request.POST)
+        if registration_form.is_valid():
+            registration_form.save()
+            return redirect("accounts:login")
+    else:
+        registration_form = RegistrationForm()
+
+    grace = {"register": registration_form}
+    return render(request, "auth/registration.html", grace)
+
+
+def logout_view(request):
+    logout(request)
+    return redirect("accounts:login")
+```
+### Forms (accounts/forms.py)
+```Python
+from django import forms
+from django.contrib.auth import get_user_model
+from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+
+User_Model = get_user_model()
+
+
+class RegistrationForm(UserCreationForm):
+    class Meta:
+        model = User_Model
+        fields = [
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "password1",
+            "password2",
+        ]
+
+
+class LoginForm(AuthenticationForm):
+    class Meta:
+        model = User_Model
+        fields = ["username", "password1"]
+User Profile Model (accounts/models.py)
+Python
+from datetime import date, timedelta
+from django.contrib.auth.models import User
+from django.db import models
+from django.utils import timesince, timezone
+```
+
+## accounts.models
+
+```python
+
+class UserProfile(models.Model):
+    gender = (
+        ("f", "Female"),
+        ("m", "Male"),
+    )
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    gender = models.CharField(
+        max_length=6, choices=gender, blank=True, null=True
+    )
+    dob = models.DateField(blank=True, null=True)
+    country = models.CharField(max_length=30, blank=True, null=True)
+    contact = models.CharField(max_length=20, blank=True, null=True)
+
+    def age_func(self):
+        self.age = (timezone.now() - self.dob).year()
+
+    def __str__(self):
+        return f"{self.user.username}"
+```
+### App URLs (accounts/urls.py)
+```Python
+from django.urls import path
+from .views import login_view, logout_view, registration_view
+
+app_name = "accounts"
+urlpatterns = [
+    # path("",home_page,name="index"),
+    path("register-page/", registration_view, name="registration"),
+    path("login-page/", login_view, name="login"),
+    path("logout/", logout_view, name="logout"),
+]
+```
+
+## Auth Templates
+### Login Template (auth/login.html)
+```HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+</head>
+<body>
+    <h2>Login Form</h2>
+    <form action="" method="POST">
+        {% csrf_token %}
+        {{login.as_p}}
+        
+        <button type="submit">Login</button>
+    </form>
+    <p>if you dont' have an account</p>
+    <a href="{% url 'accounts:registration' %}">register</a>
+</body>
+</html>
+```
+
+## Registration Template (auth/registration.html)
+```HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+</head>
+<body>
+    <h2>Login Form</h2>
+    <form action="" method="POST">
+        {% csrf_token %}
+        {{login.as_p}}
+        
+        <button type="submit">Login</button>
+    </form>
+    <p>if you dont' have an account</p>
+    <a href="{% url 'accounts:registration' %}">register</a>
+</body>
+</html>
+```
+## 3. Project Configuration & Settings
+### Settings Configuration (settings.py)
+```Python
+import os
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Authentication Redirects
+LOGIN_REDIRECT_URL = "home:index"
+LOGOUT_REDIRECT_URL = "accounts:login"
+LOGIN_URL = "accounts:login"
+
+# Static and Media Files Configuration
+MEDIA_URL = "/media/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+
+INTERNAL_IPS = [
+    # ...
+    "127.0.0.1",
+    # ...
+]
+
+INSTALLED_APPS = [
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "author",  # Author application registered in the project.settings file telling django project that author application has created
+    "home_app",
+    "book_app",
+    "genre_app",
+    "accounts",
+    "import_export",  # external library for import and export files
+    "debug_toolbar",  # external library for debugging django application
+]
+```
+
+### Project Root URLs (urls.py)
+```Python
+from debug_toolbar.toolbar import debug_toolbar_urls
+from django.conf import settings
+from django.conf.urls.static import static
+from django.contrib import admin
+from django.urls import include, path
+
+urlpatterns = [
+    path("admin/", admin.site.urls),
+    path("", include("home_app.urls")),
+    path("accounts/", include("accounts.urls")),
+    path("author/", include("author.urls")),
+    path("book/", include("book_app.urls")),
+    path("genre/", include("genre_app.urls")),
+] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT) + debug_toolbar_urls()
+```
