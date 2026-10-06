@@ -918,3 +918,281 @@ wtm_library/
 ├── pyproject.toml              # uv setup file
 └── requirement_dev.txt         # Frozen dependencies
 ```
+
+# Best Practice
+
+## 1. Create a tuple variable for entries with an exhaustive list instead of an input field  
+
+### **Tuples for Choices & Many-to-Many Relationships**
+```python
+from django.db import models
+
+
+class Genre(models.Model):
+    # Tuple of choices for explicit select options
+    CHOICES = (
+        ("Fiction","Fiction"),
+        ("Non-Fiction","Non-Fiction"),
+        ("Science Fiction","Science Fiction"),
+        ("Fantasy","Fantasy"),
+        ("Mystery","Mystery"),
+        ("Romance","Romance"),
+        ("Horror","Horror"),
+        ("Thriller","Thriller"),
+        ("Biography","Biography"),
+        ("History","History"),
+        ("Self-Help","Self-Help"),
+        ("Academic","Academic/Special"),
+    )
+    title = models.CharField(max_length=200,blank=False,null=False)
+    category = models.CharField(max_length=200,choices=CHOICES,blank=False,null=False)
+
+    def __str__(self):
+        return f"{self.title}"
+```
+
+---
+
+## 2. Form Validation, Normalization & Custom Widgets (`books/forms.py`), manipulative your frontend in your forms.py
+
+```python
+from django import forms
+from .models import Book
+
+
+class CreateBookForm(forms.ModelForm):
+    published_date = forms.DateField(
+        widget=forms.DateInput(
+            attrs={"type": "date", "name": "published_date"}
+        )
+    )
+
+    class Meta:
+        model = Book
+        fields = ["title", "isbn", "author", "genre", "published_date"]
+
+    # Field-level cleaning: Capitalize input & prevent duplicate entries
+    def clean_title(self):
+        cleaned_title = self.cleaned_data.get("title")
+        proper_title = cleaned_title.title() if raw_title else ""
+
+        if Book.objects.filter(title=proper_title).exists():
+            raise forms.ValidationError(
+                "This title already exists. Please choose a different title."
+            )
+
+        return proper_title
+
+
+class UpdateBookForm(forms.ModelForm):
+    published_date = forms.DateField(
+        widget=forms.DateInput(
+            attrs={"type": "date", "name": "published_date"}
+        )
+    )
+
+    class Meta:
+        model = Book
+        fields = ["title", "isbn", "author", "genre", "published_date"]
+```
+
+---
+
+## 3. Views & Query Logic (`books/views.py`)
+
+### **Handling M2M Relationships, CRUD, and Query Methods**
+```python
+from django.shortcuts import get_object_or_404, redirect, render
+from .forms import CreateBookForm, UpdateBookForm
+from .models import Book
+
+
+# View & Create Books (Handling commit=False & save_m2m)
+def view_book(request):
+    all_books = Book.objects.all().order_by("-published_date")
+
+    if request.method == "POST":
+        create_book = CreateBookForm(request.POST)
+        if create_book.is_valid():
+            # If custom logic is required before committing to DB:
+            book_instance = create_book.save(commit=False)
+            book_instance.save()  # Save parent record first
+            create_book.save_m2m()  # Save Many-to-Many relations (e.g. genre)
+
+            return redirect("books:view_book")
+    else:
+        create_book = CreateBookForm()
+
+    context = {"all_books": all_books, "create_form": create_book}
+    return render(request, "book/display_books.html", context)
+
+
+# Update Book View
+def update_book(request, update_id):
+    get_book = get_object_or_404(Book, id=update_id)
+
+    if request.method == "POST":
+        update_form = UpdateBookForm(request.POST, instance=get_book)
+        if update_form.is_valid():
+            update_form.save()
+            return redirect("books:view_book")
+    else:
+        update_form = UpdateBookForm(instance=get_book)
+
+    return render(
+        request, "book/update_books.html", {"update_book": update_form}
+    )
+
+
+# Delete Book View
+def delete_book(request, delete_id):
+    get_book = get_object_or_404(Book, id=delete_id)
+    get_book.delete()
+    return redirect("books:view_book")
+```
+
+---
+
+## 4. Some Interactive Django Shell / CLI ORM Commands (`python manage.py shell`)
+
+```python
+from books.models import Book, Genre
+
+# --- READ / QUERY ---
+# Fetch all records
+all_books = Book.objects.all()
+
+# Order records (Ascending / Descending)
+sorted_books = Book.objects.all().order_by("title")
+recent_books = Book.objects.all().order_by("-published_date")
+
+# Filter matching records
+fiction_books = Book.objects.filter(genre__title="Fiction")
+
+# Fetch single item safely
+single_book = Book.objects.get(id=1)
+
+# First or Last item safely
+first_book = Book.objects.first()
+
+# --- MANY-TO-MANY IN SHELL ---
+genre_obj = Genre.objects.get(title="Sci-Fi")
+single_book.genre.add(genre_obj)
+
+# --- UPDATE & DELETE ---
+single_book.title = "Updated Title"
+single_book.save()
+
+single_book.delete()
+```
+
+---
+
+## 5. Dynamic URL Routing (`books/urls.py`)
+
+```python
+from django.urls import path
+from . import views
+
+app_name = "books"
+
+urlpatterns = [
+    path("", views.view_book, name="view_book"),
+    path("update/<int:update_id>/", views.update_book, name="update_books"),
+    path("delete/<int:delete_id>/", views.delete_book, name="delete_books"),
+]
+```
+
+---
+
+## 6. Templates & Dynamic Tags (`templates/book/display_books.html`), jinja templating form control
+
+### control your forms yourself instead of using the general tags
+
+```html
+{% extends "base/base.html" %}
+
+{% block content %}
+<h2>Add Books</h2>
+
+<form method="POST">
+    {% csrf_token %}
+    
+    <!-- Rendering Individual Form Fields, Labels, and Errors -->
+    <div>
+        {{ create_form.title.label_tag }}
+        {{ create_form.title }}
+        {{ create_form.title.errors }}
+    </div>
+
+    <p>
+        {{ create_form.isbn.label_tag }}
+        {{ create_form.isbn }}
+        {{ create_form.isbn.errors }}
+    </p>
+
+    <div>
+        {{ create_form.author.label_tag }}
+        {{ create_form.author }}
+        {{ create_form.author.errors }}
+    </div>
+
+    <p>
+        {{ create_form.genre.label_tag }}
+        {{ create_form.genre }}
+        {{ create_form.genre.errors }}
+    </p>
+
+    <div>
+        {{ create_form.published_date.label_tag }}
+        {{ create_form.published_date }}
+        {{ create_form.published_date.errors }}
+    </div>
+    
+    <button type="submit">Submit</button>
+</form>
+
+<h2>Book List</h2>
+
+<table> 
+    <thead>
+        <tr>
+            <th>S/N</th>  
+            <th>Title</th>  
+            <th>ISBN</th>  
+            <th>Author</th>  
+            <th>Genre</th>  
+            <th>Publication Date</th>
+            <th>Age of Book</th>
+            <th colspan="2">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for book in all_books %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ book.title }}</td>
+            <td>{{ book.isbn }}</td>
+            <td>{{ book.author }}</td>
+            <td>
+                <!-- Many-to-Many Loop Handling with Last Item Formatting -->
+                {% for genre in book.genre.all %}
+                    {{ genre.title }}{% if not forloop.last %}, {% endif %}
+                {% empty %}
+                    N/A
+                {% endfor %}
+            </td>
+            <td>{{ book.published_date }}</td>
+            <td>{{ book.published_date|timesince }}</td>
+            <td><a href="{% url 'books:update_books' book.id %}">Edit</a></td>
+            <td><a href="{% url 'books:delete_books' book.id %}">Delete</a></td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="9">No books found in database.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
+```

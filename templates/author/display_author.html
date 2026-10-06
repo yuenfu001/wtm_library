@@ -1,34 +1,53 @@
 {% extends "base/base.html" %}
 
 {% block content %}
-   <h2>List of Authors</h2>
-    <table>
-        <tr>
-            <th>S/N</th>
-            <th>First Name</th>
-            <th>Last Name</th>
-            <th>Date of birth</th>
-            <th>Year of Death</th>
-            <th>Age</th>
-            <th colspan="2">Options</th>
-        </tr>
-        {% for author in display_all_author %}
-        <tr>
-            <td>{{forloop.counter}}</td>
-            <td>{{author.first_name}}</td>
-            <td>{{author.last_name}}</td>
-            <td>{{author.dob}}</td>
+<h2>List of Authors</h2>
+<table>
+    <tr>
+        <th>S/N</th>
+        <th>First Name</th>
+        <th>Last Name</th>
+        <th>Date of birth</th>
+        <th>Year of Death</th>
+        <th>Age</th>
+        <th colspan="2">Options</th>
+    </tr>
+    {% for author in page_obj %}
+    <tr>
+        <td>{{page_obj.start_index|add:forloop.counter0}}</td>
+        <td>{{author.first_name}}</td>
+        <td>{{author.last_name}}</td>
+        <td>{{author.dob}}</td>
 
-            {% if author.year_of_death %}
-              <td>{{author.year_of_death}}</td>
-              {% else %}
-              <td>Still Alive</td>
-            {% endif %}
-            <td>{{author.dob|timesince:author.year_of_death}}</td>
-            <td><a href="{% url 'update_author' author.id %}">edit</a></td>
-            <td><a href="{% url 'delete_author' author.id %}">delete</a></td>
-            
-        </tr>
-        {% endfor %}
-    </table>
+        {% if author.year_of_death %}
+        <td>{{author.year_of_death}}</td>
+        {% else %}
+        <td>Still Alive</td>
+        {% endif %}
+        <td>{{author.dob|timesince:author.year_of_death}}</td>
+        <td><a href="{% url 'update_author' author.id %}">edit</a></td>
+        <td><a href="{% url 'delete_author' author.id %}">delete</a></td>
+
+    </tr>
+    {% endfor %}
+</table>
+
+<div>
+    {% if page_obj.has_previous %}
+        <a href="?pages=1">First</a>
+        <a href="?pages={{page_obj.previous_page_number}}">Previous</a>
+    {% endif %}
+</div>
+<div>
+    {% for yeukai in page_obj.paginator.page_range %}
+    <a href="?pages={{yeukai}}">{{yeukai}}</a>
+      
+    {% endfor %}
+</div>
+<div>
+    {% if page_obj.has_next %}
+        <a href="?pages={{page_obj.paginator.num_pages}}">Last</a>
+        <a href="?pages={{page_obj.next_page_number}}">Next</a>
+    {% endif %}
+</div>
 {% endblock %}

@@ -6,5 +6,6 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "django>=6.1.1",
+    "django-debug-toolbar>=8.0.0",
     "django-import-export>=4.4.1",
 ]

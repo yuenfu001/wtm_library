@@ -1,6 +1,6 @@
 {% extends "base/base.html" %}
 {% block content %}
-    <h2>List of Books</h2>
+    <h2>List of Genres</h2>
 
     <form action="" method="post">
         {% csrf_token %}
@@ -17,13 +17,36 @@
         </tr>
         {% for flavia in display_genres %}
         <tr>
-            <td>{{forloop.counter}}</td>
+            <td>{{display_genres.start_index|add:forloop.counter0}}</td>
             <td>{{flavia.title}}</td>
             <td>{{flavia.category}}</td>
-            <td><a href="">edit</a></td>
+            <td><a href="{% url 'genres:update_genre' flavia.id %}">edit</a></td>
             <td><a href="{% url 'genres:delete_genre' flavia.id %}">delete</a></td>
             
         </tr>
         {% endfor %}
     </table>
+    <div>
+        {{display_genres.paginator.count}} Total records
+    </div>
+    <div>
+        showing {{display_genres.number}} of {{display_genres.paginator.num_pages}} pages
+    </div>
+    <div>
+        {% for page in display_genres.paginator.page_range %}
+          <a href="?page={{page}}">{{page}}</a>
+        {% endfor %}
+    </div>
+    <div>
+        {% if display_genres.has_previous %}
+          <a href="?page=1">first</a>
+          <a href="?page={{display_genres.previous_page_number}}">Previous</a>
+        {% endif %}
+    </div>
+    <div>
+        {% if display_genres.has_next %}
+          <a href="?page={{display_genres.next_page_number}}">Next</a>
+          <a href="?page={{display_genres.paginator.num_pages}}">Last</a>
+        {% endif %}
+    </div>
 {% endblock %}

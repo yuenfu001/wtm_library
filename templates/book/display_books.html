@@ -1,5 +1,23 @@
 {% extends "base/base.html" %}
 {% block content %}
+<h2>Create New Book</h2>
+<form method="POST">
+    {% csrf_token %}
+        <p>{{create_book.title.label_tag}}
+        {{create_book.title}}
+        {{create_book.title.errors}}</p>
+        {{create_book.isbn.label_tag}}
+        {{create_book.isbn}}
+        <p>{{create_book.author.label_tag}}
+        {{create_book.author}}</p>
+        {{create_book.genre.label_tag}}
+        {{create_book.genre}}
+        <p>
+        {{create_book.published_date.label_tag}}
+        {{create_book.published_date}}
+        </p>
+    <button type="submit">Create Book</button>
+</form>
     <h2>List of Books</h2>
     <table>
         <tr>
@@ -12,21 +30,21 @@
             <th>Book-Age</th>
             <th colspan="2">Options</th>
         </tr>
-        {% for author in display_all_author %}
+        {% for book in display_books %}
         <tr>
             <td>{{forloop.counter}}</td>
-            <td>{{author.first_name}}</td>
-            <td>{{author.last_name}}</td>
-            <td>{{author.dob}}</td>
-
-            {% if author.year_of_death %}
-              <td>{{author.year_of_death}}</td>
-              {% else %}
-              <td>Still Alive</td>
-            {% endif %}
-            <td>{{author.dob|timesince:author.year_of_death}}</td>
-            <td><a href="{% url 'update_author' author.id %}">edit</a></td>
-            <td><a href="{% url 'delete_author' author.id %}">delete</a></td>
+            <td>{{book.title}}</td>
+            <td>{{book.isbn}}</td>
+            <td>{{book.author}}</td>
+            <td>{% for genre in book.genre.all %}
+                {{genre}}
+                {%if not forloop.last %},{% endif %}
+            {% endfor %}</td>
+            <td>{{book.published_date}}</td>
+            <td>{{book.published_date|timesince}}</td>
+            
+            <td><a href="{% url 'books_app:update_book' book.id %}">edit</a></td>
+            <td><a href="{% url 'books_app:delete_book' book.id %}">delete</a></td>
             
         </tr>
         {% endfor %}
